@@ -1,0 +1,108 @@
+---
+endpoints:
+  dev:
+    aws:
+      profile: fpg-proj-ing-dev
+      region: us-east-1
+    terraform:
+      s3_backend:
+        bucket: fpg-ingauge-use1-terraform-2xdz-s3
+        prefix: terraform/fpg_proj_ing_dev/ci-cd-automations/ing-data-pms-etl/cambridge.tfstate
+        region: us-east-1
+        profile: fpg-svc-root
+    lambda:
+      lambda_function_name: etl-cambridge-dev-process
+      role_name: nonprod-etl-lambda-role
+      sqs_queue_name: etl-cambridge-dev
+      subnet_ids:
+        - subnet-0f558d8d19654364b
+        - subnet-01af19c4f3136a071
+      security_group_ids:
+        - sg-038723f1d9b05b505
+      layers:
+        - EtlServicesPackageNonprod:56
+      layer_pandas_name: AWSSDKPandas-Python312:18
+      tags:
+        purpose: Responsible for the extraction of files from SFTP folder to the raw_data folder and mask the PII data
+      env:
+        app_broker: b-1.nonprod-dp-msk-kafka.n60erx.c23.kafka.us-east-1.amazonaws.com:9092,b-2.nonprod-dp-msk-kafka.n60erx.c23.kafka.us-east-1.amazonaws.com:9092
+        log_app_topic: app.log.data.nonprod
+        log_perf_topic: app.performance.data.nonprod
+        ops_db_name: data-processing-dev
+        s3_output_bucket: etl-raw-data-dev
+        sftp_bucket: ing-sftp-raw-data-dev
+        credentials_secret_name: etl_mysql_mongodb_email_cred_nonprod1
+        api_url: https://uat-app.fpg-ingauge.com/pulse/api/importMetrics/importFromUtility
+
+  stg:
+    aws:
+      profile: fpg-proj-ing-stg
+      region: us-east-1
+    terraform:
+      s3_backend:
+        bucket: fpg-ingauge-use1-terraform-2xdz-s3
+        prefix: terraform/fpg_proj_ing_stg/ci-cd-automations/ing-data-pms-etl/cambridge.tfstate
+        region: us-east-1
+        profile: fpg-svc-root
+    lambda:
+      lambda_function_name: etl-cambridge-stg-process
+      role_name: fpg-proj-ing-stg-etl-lambda-role
+      sqs_queue_name: fpg-proj-ing-stg-use1-etl-cambridge-queue
+      subnet_ids:
+        - subnet-0fc159b4d9dcac4d6
+        - subnet-0b8900136f514923d
+        - subnet-0027d81be75a424bc
+      security_group_ids:
+        - sg-03a938956bce9b4c4
+      layers:
+        - Notification_layer_all_env:1
+        - EtlServicesPackageStg:1
+        - failSafePackageLayer:1
+      layer_pandas_name: AWSSDKPandas-Python312:18
+      tags:
+        purpose: To process the raw data and create excel file which expected to Pulse import module ETL for Cambridge PMS
+      env:
+        app_broker: b-1.fpgprojingstguse1etlm.u0ua2a.c16.kafka.us-east-1.amazonaws.com:9092,b-2.fpgprojingstguse1etlm.u0ua2a.c16.kafka.us-east-1.amazonaws.com:9092
+        log_app_topic: app.log.data.stg
+        log_perf_topic: app.performance.data.stg
+        ops_db_name: data-processing-stg
+        s3_output_bucket: etl-raw-data-stg
+        sftp_bucket: ing-sftp-raw-data-stg
+        credentials_secret_name: etl_mysql_mongodb_email_cred_stg
+        api_url: https://pre-prod-app.fpg-ingauge.com/pulse/api/importMetrics/importFromUtility
+
+  prod:
+    aws:
+      profile: fpg-proj-ing-prod
+      region: us-east-1
+    terraform:
+      s3_backend:
+        bucket: fpg-ingauge-use1-terraform-2xdz-s3
+        prefix: terraform/fpg_proj_ing_prod/ci-cd-automations/ing-data-pms-etl/cambridge.tfstate
+        region: us-east-1
+        profile: fpg-svc-root
+    lambda:
+      lambda_function_name: etl-cambridge-prod-process
+      role_name: prod-etl-lambda-role
+      sqs_queue_name: etl-cambridge-prod
+      subnet_ids:
+        - subnet-0516f833e122755bb
+        - subnet-04328a27415d91e0d
+      security_group_ids:
+        - sg-0a3dc3f298fc2bb91
+      layers:
+        - Notification_layer_all_env:21
+        - EtlServicesPackageNonprod:37
+        - failSafePackageLayer:35
+      layer_pandas_name: AWSSDKPandas-Python312:18
+      tags:
+        purpose: To process the raw data and create excel file which expected to Pulse import module ETL for Cambridge PMS
+      env:
+        app_broker: b-1.prod-dp-msk-kafka-clu.45kcyh.c25.kafka.us-east-1.amazonaws.com:9092,b-2.prod-dp-msk-kafka-clu.45kcyh.c25.kafka.us-east-1.amazonaws.com:9092
+        log_app_topic: app.log.data.prod
+        log_perf_topic: app.performance.data.prod
+        ops_db_name: data-processing-prod
+        s3_output_bucket: etl-raw-data-prod
+        sftp_bucket: ing-sftp-raw-data-prod
+        credentials_secret_name: etl_mysql_mongodb_email_cred_prod
+        api_url: https://app.fpg-ingauge.com/pulse/api/importMetrics/importFromUtility

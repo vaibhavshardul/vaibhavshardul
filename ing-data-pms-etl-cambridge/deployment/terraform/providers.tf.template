@@ -1,0 +1,22 @@
+provider "aws" {
+  profile = "${AWS_PROFILE}"
+}
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 6.0.0"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = ">= 0.9.1"
+    }
+  }
+  backend "s3" {
+    bucket  = "${TERRAFORM_S3_BACKEND_BUCKET}"
+    key     = "${TERRAFORM_S3_BACKEND_PREFIX}"
+    region  = "${TERRAFORM_S3_BACKEND_REGION}"
+    profile = "${TERRAFORM_S3_BACKEND_PROFILE}"
+  }
+}

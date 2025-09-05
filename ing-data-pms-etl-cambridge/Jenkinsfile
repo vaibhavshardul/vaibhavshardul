@@ -1,0 +1,105 @@
+@Library('fpg-jenkins-shared-lib') _
+
+pipeline {
+    agent any
+    options { 
+        disableConcurrentBuilds(abortPrevious: true)
+        timestamps()
+    }
+    environment {
+        AWS_S3_BUCKET = 'fpg-shared-use1-ci-cd-rqjj-s3'
+        PYTHON_VERSION = '3.12'
+    }
+    stages {
+        stage('Init'){
+            steps {
+                script {
+                    // use SharedLib groovy functions to set BUILD_TYPE and APP_VERSION
+                    env.BUILD_TYPE = defineBuildType()
+                    env.APP_VERSION = defineAppVersion(env.BUILD_TYPE)
+                    currentBuild.displayName = "${env.APP_VERSION}"
+                    currentBuild.description = sh(returnStdout: true , script: "echo Building application from branch ${BRANCH_NAME} of version $APP_VERSION").trim()
+                }
+            }
+        }
+        stage('Install dependencies && build Cambridge artifact') {
+            steps {
+                script {
+                    sh """
+                        pip${PYTHON_VERSION} install \
+                            --no-deps -r requirements.txt \
+                            --target python/lib/python${PYTHON_VERSION}/site-packages
+                        zip -r layer.zip python -x '*.dist-info*' '*__pycache__*' '*.txt*' '*boto3*' '*botocore*'
+                        cd src && zip -r ../code.zip .
+                    """
+                }
+            }
+        }
+        stage('Upload artifact to S3') {
+            steps {
+                withEnv(["AWS_PROFILE=fpg-svc-shared"]) {
+                    script {
+                        def projectName = env.JOB_NAME.tokenize('/')[1]
+                        def bucket = env.AWS_S3_BUCKET
+                        def buildType = env.BUILD_TYPE
+                        def appVersion = env.APP_VERSION
+
+                        echo "Uploading build artifact to S3 as ${bucket}/${projectName}/${buildType}/${appVersion}.zip"
+
+                        sh """
+                            aws s3 cp code.zip s3://${bucket}/${projectName}/${buildType}/${appVersion}.zip
+                            aws s3 cp layer.zip s3://${bucket}/${projectName}/${buildType}/${appVersion}_layer.zip
+                        """
+                    }
+                }
+            }
+        }
+        stage("Deploy to staging environment") {
+            when {
+                expression { 
+                    return env.BRANCH_NAME == 'main'
+                }
+            }
+            steps {
+                script {
+                     build job: 'ING-Deployments/ing-data-pms-etl-cambridge/Stg Deployment',
+                    parameters: [
+                        string(name: 'BRANCH', value: 'main'),
+                        string(name: 'ENDPOINT', value: 'stg'),
+                        string(name: 'ARTIFACT_VERSION', value: "${BUILD_TYPE}/${APP_VERSION}")
+                    ],
+                    wait: false
+                }
+            }
+        }
+        stage("Deploy to production environment") {
+            when {
+                expression { 
+                    return env.BRANCH_NAME ==~ /^v\d+\.\d+\.\d+$/
+                }
+            }
+            steps {
+                script {
+                    build job: 'ING-Deployments/ing-data-pms-etl-cambridge/Prod Deployment',
+                    parameters: [
+                        string(name: 'BRANCH', value: "${BRANCH_NAME}"),
+                        string(name: 'ENDPOINT', value: 'prod'),
+                        string(name: 'ARTIFACT_VERSION', value: "${BUILD_TYPE}/${APP_VERSION}")
+                    ],
+                    wait: false
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            echo "Failure: Something went wrong with the build"
+            script {
+                emailext body: "Data Cambridge Etl CI/CD failed with build url - ${env.BUILD_URL}",
+                         from: "Jenkins Notifier <jenkins-noreply@in-gauge.io>",
+                         subject: "ing-data-pms-etl-cambridge - Build #${env.BRANCH_NAME}-${env.BUILD_NUMBER} failed",
+                         to: "rrathi@in-gauge.io, rkhose@in-gauge.io, sbano@in-gauge.io"
+            }
+        }
+    }
+}

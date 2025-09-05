@@ -1,0 +1,92 @@
+pipeline {
+    agent any
+    options {
+        timestamps()
+    }
+    environment {
+        CONFIGURATION = 'deployment/envs/endpoints.yml'
+        AWS_S3_BUCKET = 'fpg-shared-use1-ci-cd-rqjj-s3'
+        AWS_PANDAS_ACCOUNT_ID = "${env.AWS_PANDAS_ACCOUNT_ID}"
+        PROJECT_NAME = 'ing-data-pms-etl-cambridge'
+        ETL_NAME = 'cambridge'
+    }
+    stages {
+        stage('Set build name') {
+            steps {
+                script {
+                    currentBuild.displayName = "${ARTIFACT_VERSION} from ${BRANCH} deploy-${BUILD_NUMBER}"
+                    currentBuild.description = "Deployment ${ARTIFACT_VERSION} from ${BRANCH} for ${params.ENDPOINT} environment"
+                }
+            }
+        }
+        stage('Read YAML & Deploy') {
+            steps {
+                script {
+                    echo "Reading YAML configuration..."
+                    def yamlContent = readYaml file: "${env.WORKSPACE}/${CONFIGURATION}"
+                    echo "YAML content: ${yamlContent}"
+
+                    if (!yamlContent.endpoints.containsKey(params.ENDPOINT)) {
+                        error "The specified ENDPOINT '${params.ENDPOINT}' is not found in the configuration file."
+                    }
+
+                    def endpointConfig = yamlContent.endpoints[params.ENDPOINT]
+
+                    echo "Endpoint config: ${endpointConfig}"
+                    stage("Deploy - ${params.ENDPOINT}-${ETL_NAME}") {
+                        script {
+                            echo "Deploying ${params.ENDPOINT}-${ETL_NAME} with the following configuration:"
+                            echo "AWS_PROFILE=${endpointConfig.aws.profile}, AWS_REGION=${endpointConfig.aws.region}, LAMBDA=${ETL_NAME}}"
+                            sh """
+                                export AWS_PROFILE='${endpointConfig.aws.profile}'
+                                export AWS_REGION='${endpointConfig.aws.region}'
+                                export TERRAFORM_S3_BACKEND_BUCKET='${endpointConfig.terraform.s3_backend.bucket}'
+                                export TERRAFORM_S3_BACKEND_PREFIX="${endpointConfig.terraform.s3_backend.prefix}"
+                                export TERRAFORM_S3_BACKEND_REGION='${endpointConfig.terraform.s3_backend.region}'
+                                export TERRAFORM_S3_BACKEND_PROFILE='${endpointConfig.terraform.s3_backend.profile}'
+                                export ENVIRONMENT='${params.ENDPOINT}'
+
+                                export LAMBDA_LAYERS='${endpointConfig.lambda.layers.join(',')}'
+                                export LAMBDA_LAYER_PANDAS_NAME='${endpointConfig.lambda.layer_pandas_name}'
+                                export LAMBDA_PANDAS_ACCOUNT_ID='${AWS_PANDAS_ACCOUNT_ID}'
+                                export LAMBDA_ROLE_NAME='${endpointConfig.lambda.role_name}'
+                                export LAMBDA_VPC_SECURITY_GROUP_IDS='${endpointConfig.lambda.security_group_ids.join(',')}'
+                                export LAMBDA_VPC_SUBNET_IDS='${endpointConfig.lambda.subnet_ids.join(',')}'
+
+                                export LAMBDA_S3_BUCKET=${AWS_S3_BUCKET}
+                                export LAMBDA_S3_KEY=${PROJECT_NAME}
+
+                                export LAMBDA_ENV_APP_BROKER='${endpointConfig.lambda.env.app_broker}'
+                                export LAMBDA_ENV_LOG_APP_TOPIC='${endpointConfig.lambda.env.log_app_topic}'
+                                export LAMBDA_ENV_LOG_PERF_TOPIC='${endpointConfig.lambda.env.log_perf_topic}'
+                                export LAMBDA_ENV_OPS_DB_NAME='${endpointConfig.lambda.env.ops_db_name}'
+                                export LAMBDA_ENV_S3_OUTPUT_BUCKET='${endpointConfig.lambda.env.s3_output_bucket}'
+                                export LAMBDA_ENV_SFTP_BUCKET='${endpointConfig.lambda.env.sftp_bucket}'
+                                export LAMBDA_ENV_CREDENTIALS_SECRET_NAME='${endpointConfig.lambda.env.credentials_secret_name}'
+                                export LAMBDA_ENV_API_URL='${endpointConfig.lambda.env.api_url}'
+
+                                export LAMBDA_SQS_QUEUE_NAME='${endpointConfig.lambda.sqs_queue_name}'
+
+                                cd deployment/terraform
+                                envsubst < providers.tf.template > providers.tf
+                                envsubst < var_values.auto.tfvars.template > var_values.auto.tfvars
+
+                                terraform init
+                                terraform plan
+                                terraform apply -auto-approve=true
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Success: Deployment completed!'
+        }
+        failure {
+            echo 'Failure: Something went wrong with the build.'
+        }
+    }
+}

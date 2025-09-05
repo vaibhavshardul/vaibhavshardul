@@ -1,0 +1,26 @@
+pymysql==1.1.1
+confluent-kafka==1.7.0
+greenlet==3.1.1
+pandasql==0.7.3
+six==1.16.0
+SQLAlchemy==2.0.0
+pymongo==4.6.3
+dnspython==2.6.1
+requests==2.32.0
+certifi==2024.07.04
+charset-normalizer==3.4.1
+idna==3.7
+urllib3==1.26.19
+et-xmlfile==1.1.0
+
+# Testing dependencies
+pytest==8.4.1
+pytest-cov==6.1.1
+pytest-html==4.1.1
+pytest-metadata==3.1.1
+coverage==7.5
+moto==5.1.6
+mock==5.1.0
+
+# wheel file for mock modules
+https://cdn-shared.in-gauge.io/pip/mock_modules-0.0.1-py3-none-any.whl

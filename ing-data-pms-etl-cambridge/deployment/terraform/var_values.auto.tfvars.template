@@ -1,0 +1,65 @@
+project = "ing"
+env     = "${ENVIRONMENT}"
+
+aws_lambda = {
+  attach_network_policy  = true
+  create_package         = false
+  create_role            = false
+  description            = "To process the raw data and create excel file which expected to Pulse import module ETL for Cambridge PMS"
+  function_name          = "etl-cambridge-lambda-${ENVIRONMENT}"
+  handler                = "handler.lambda_handler"
+  runtime                = "python3.12"
+  memory_size            = 512
+  timeout                = 900
+  layers                 = "${LAMBDA_LAYERS}"
+  layer_pandas_name      = "${LAMBDA_LAYER_PANDAS_NAME}"
+  pandas_account_id      = "${LAMBDA_PANDAS_ACCOUNT_ID}"
+  region                 = "${AWS_REGION}"
+  role_name              = "${LAMBDA_ROLE_NAME}"
+  vpc_security_group_ids = "${LAMBDA_VPC_SECURITY_GROUP_IDS}"
+  vpc_subnet_ids         = "${LAMBDA_VPC_SUBNET_IDS}"
+
+  environment_variables  = {
+    app_stream                = "DATA_PROCESSING"
+    app_module                = "EXTRACTION"
+    app_sub_module            = "ETL_CAMBRIDGE"
+    temp_table                = "missing_pms_temp_file"
+    mysql_db                  = "in_gauge_2018"
+    mysql_ing_database        = "in_gauge_2018"
+    mysql_ing_connect_timeout = "5"
+    private_key_secret_name   = "etl_decryption_private_key"
+    tmp_dir                   = "/tmp/"
+    hyatt_pass                = "Hyatt_Passphrase"
+    s3_target_dir             = "output-extracted-live-data"
+    threshold_time_second     = "480"
+    app_env                   = "${ENVIRONMENT}"
+    app_broker                = "${LAMBDA_ENV_APP_BROKER}"
+    log_app_topic             = "${LAMBDA_ENV_LOG_APP_TOPIC}"
+    log_perf_topic            = "${LAMBDA_ENV_LOG_PERF_TOPIC}"
+    ops_db_name               = "${LAMBDA_ENV_OPS_DB_NAME}"
+    s3_output_bucket          = "${LAMBDA_ENV_S3_OUTPUT_BUCKET}"
+    sftp_bucket               = "${LAMBDA_ENV_SFTP_BUCKET}"
+    credentials_secret_name   = "${LAMBDA_ENV_CREDENTIALS_SECRET_NAME}"
+    api_url                   = "${LAMBDA_ENV_API_URL}"
+  }
+
+  s3_existing_package    = {
+    bucket    = "${LAMBDA_S3_BUCKET}"
+    key       = "${LAMBDA_S3_KEY}/${ARTIFACT_VERSION}.zip"
+    layer_key = "${LAMBDA_S3_KEY}/${ARTIFACT_VERSION}_layer.zip"
+  }
+
+  tags = {
+    Owner       = "ing-devops-team"
+    Billing     = "ing-${ENVIRONMENT}"
+    Environment = "${ENVIRONMENT}"
+    Workstream  = "etl"
+    Stream      = "data-processing"
+    Name        = "etl-cambridge-lambda"
+    Automation  = "terraform"
+  }
+
+  sqs_queue_name         = "${LAMBDA_SQS_QUEUE_NAME}"
+  sqs_batch_size         = 1
+  sqs_enabled            = false
+}
