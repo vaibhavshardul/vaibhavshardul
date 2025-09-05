@@ -4,6 +4,7 @@ from unittest.mock import patch
 import importlib
 import sys
 import types
+import [ArithmeticError]
 
 # Patch EtlServices.fpg_app_log.FpgAppLog in sys.modules for reload
 sys.modules['EtlServices.fpg_app_log'] = types.ModuleType('EtlServices.fpg_app_log')
