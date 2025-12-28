@@ -65,4 +65,17 @@ def test_app_constant_variables_and_display_classname(capsys):
     assert 'APP_STREAM' in captured.out or 'APP_MODULE' in captured.out or 'APP_SUB_MODULE' in captured.out
     const.display_classname()
     captured = capsys.readouterr()
+
+    assert 'AppConstants' in captured.out 
+
+
+def test_app_constant_variables_and_display_classname(capsys):
+    from src.model.app_constants import AppConstants
+    const = AppConstants()
+    # These methods just print, so we check output
+    const.app_constant_variables()
+    captured = capsys.readouterr()
+    assert 'APP_STREAM' in captured.out or 'APP_MODULE' in captured.out or 'APP_SUB_MODULE' in captured.out
+    const.display_classname()
+    captured = capsys.readouterr()
     assert 'AppConstants' in captured.out 
