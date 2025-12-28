@@ -18,3 +18,8 @@ def mean(*args, **kwargs):
 
 def std(*args, **kwargs):
     return 0 
+
+
+
+def std(*args, **kwargs):
+    return 0
